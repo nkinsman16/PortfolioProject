@@ -1,0 +1,152 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+%cd /content/drive/MyDrive/Forecasting/Python - Time Series Forecasting/Time Series Analysis/Introduction to Time Series Forecasting
+
+#Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import datetime as dt
+from statsmodels.graphics.tsaplots import month_plot, quarter_plot
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+df = pd.read_csv('bitcoin_price.csv')
+df.head()
+
+# Convert 'Data' To a Datetime and set as index
+df['Date']=pd.to_datetime(df['Date'], format = "%Y-%m-%d")
+df.set_index('Date', inplace=True)
+df.head()
+
+#Select the Bitcoin Data for November 2021
+df.loc['2021-11']
+
+# Resampling to Monthly Frequency and calculate the mean closing price
+df.resample('M').mean()
+
+# 7 - Day rolling average
+df['7_day_rolling']=df['Close'].rolling(window=7).mean()
+df[['Close','7_day_rolling']].loc['2023'].plot()
+plt.show()
+
+#Find out the highest average month
+df.resample('M').mean()['Close'].idxmax()
+
+
+# Calculate Daily Returns
+df['daily_returns']=df['Close'].pct_change()*100
+
+df[abs(df['daily_returns'])>10].head()
+
+#Daily Closing Price Plot
+df['Close'].plot(title = 'Daily Closing Price')
+plt.show()
+
+#Plot the Yearly Volume
+df.resample('Y').sum()['Volume'].plot(title = 'Yearly Volume')
+plt.show()
+
+# Plotting Closing Price and 30-day rolling volume
+df['30_day_rolling_vol']=df['Volume'].rolling(window=30).mean()
+df['30_day_rolling_vol'].plot(legend = True)
+ax = df['Close'].plot(secondary_y=True, legend = True)
+ax.set_ylabel('Closing Price')
+plt.show()
+
+#Correlation between the 30-day rolling Volume and the Closing Price
+df[['Close','30_day_rolling_vol']].corr()
+
+#Identify missing values
+df.isnull().sum()
+
+#Fill Missing Values
+df['30_day_rolling_vol'].fillna(method='bfill',inplace=True)
+
+# Interpolate missing 7 day rolling
+df['7_day_rolling'].interpolate(inplace=True)
+
+# Extract Time Variables
+df['year']=df.index.year
+df['month']=df.index.month
+df['day']=df.index.day
+df['weekday']=df.index.day_name()
+df['is_weekend']= df.index.day_name()
+df['weekday_numeric']=df.index.weekday
+df['is_weekend']=df.index.weekday >4
+df.head()
+
+#Feature Engineering - Lagged Values
+df['closed_lag1']=df['Close'].shift(1)
+df['closed_lag2']=df['Close'].shift(2)
+
+from statsmodels.graphics.tsaplots import month_plot, quarter_plot
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+# Plotting the monthly seasonality
+month_plot(df['Close'].resample('M').mean(), ylabel='Closing')
+
+#Plotting the quarterly seasonality
+quarter_plot(df['Close'].resample('Q').mean(), ylabel='Closing')
+plt.show()
+
+#Load new data
+df_choco = pd.read_csv("choco_monthly_revenue.csv", index_col = 0, parse_dates=True)
+df_choco.head()
+
+
+month_plot(df_choco['revenue'], ylabel='Revenue')
+plt.show()
+
+# Seasonal Decomposition Plots for Bitcoin Data
+decomposition = seasonal_decompose(df['Close'],
+                                   model = 'mul',
+                                   period = 365)
+fig = decomposition.plot()
+fig.set_size_inches(10,8)
+plt.show()
+
+# Seasonal Decomposition Plots for Chocolate Revenue Data
+from statsmodels.tsa.seasonal import seasonal_decompose
+import matplotlib.pyplot as plt
+
+decomposition = seasonal_decompose(df_choco['revenue'],
+                                   model = 'multiplicative',
+                                   period = 12)
+fig = decomposition.plot()
+fig.set_size_inches(10,8)
+plt.show()
+
+
+Seasonality:
+* 24 for hourly
+* 7 or 365 for daily, but 7 is preferred for modeling
+* 52 for weekly
+* 12 for monthly
+* 4 for quarterly
+* 5 for weekdays
+
+
+# Plot the autocorrelation (ACF)
+fig, ax = plt.subplots(figsize=(10,6))
+plot_acf(df['Close'], lags = 100, ax=ax)
+plt.show()
+
+# Plot the autocorrelation (ACF)
+fig, ax = plt.subplots(figsize=(10,6))
+plot_acf(df_choco['revenue'], lags = 30, ax=ax)
+plt.show()
+
+# Plot the partial autocorrelation (ACF)
+fig, ax = plt.subplots(figsize=(10,6))
+plot_pacf(df['Close'], lags = 100, ax=ax)
+plt.show()
+
+
+
+# Plot the partial autocorrelation (ACF)
+fig, ax = plt.subplots(figsize=(10,4))
+plot_pacf(df_choco['revenue'], lags = 30, ax=ax)
+plt.show()
